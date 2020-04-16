@@ -17,6 +17,18 @@ Example constants used in tests
 """
 
 from datetime import datetime
+from Crypto.PublicKey import RSA
+
+
+def generate_rsa_key():
+    """Generate priv,pub key pair for test"""
+    key = RSA.generate(2048)
+    private_key = key.export_key()
+    public_key = key.publickey().export_key()
+    return private_key, public_key
+
+
+EXAMPLE_PRIVATE_KEY, EXAMPLE_PUBLIC_KEY = generate_rsa_key()
 
 TIMESTAMP_FORMAT = '%Y-%m-%d'
 EXAMPLE_USER_REQUEST = {
@@ -45,4 +57,16 @@ EXAMPLE_USER = {
     'zip': '94043',
     'ssn': '123',
 }
-EXAMPLE_TOKEN = 'foo-token'
+EXPECTED_FIELDS = [
+    'username',
+    'password',
+    'password-repeat',
+    'firstname',
+    'lastname',
+    'birthday',
+    'timezone',
+    'address',
+    'state',
+    'zip',
+    'ssn',
+]

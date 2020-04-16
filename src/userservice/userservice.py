@@ -78,8 +78,29 @@ def create_app():
             if users_db.get_user(req['username']) is not None:
                 raise NameError('user {} already exists'.format(req['username']))
 
-            # Create the user
-            users_db.add_user(__create_user_obj(req))
+            # Create password hash with salt
+            password = req['password']
+            salt = bcrypt.gensalt()
+            passhash = bcrypt.hashpw(password.encode('utf-8'), salt)
+
+            accountid = users_db.generate_accountid()
+
+            # Create user data to be added to the database
+            user_data = {
+                'accountid': accountid,
+                'username': req['username'],
+                'passhash': passhash,
+                'firstname': req['firstname'],
+                'lastname': req['lastname'],
+                'birthday': req['birthday'],
+                'timezone': req['timezone'],
+                'address': req['address'],
+                'state': req['state'],
+                'zip': req['zip'],
+                'ssn': req['ssn'],
+            }
+            # add user_data to database
+            users_db.add_user(user_data)
 
         except UserWarning as warn:
             return jsonify({'msg': str(warn)}), 400
@@ -117,7 +138,7 @@ def create_app():
             raise UserWarning('passwords do not match')
 
     @app.route('/login', methods=['GET'])
-    def _get_token():
+    def _login():
         """Login a user and return a JWT token
 
         Fails if username doesn't exist or password doesn't match hash
@@ -160,37 +181,6 @@ def create_app():
         except SQLAlchemyError as err:
             app.logger.error(err)
             return jsonify({'msg': 'failed to retrieve user information'}), 500
-
-    def __create_user_obj(user):
-        """Creates a user object
-
-        Params: user - a key/value dict of attributes describing a new user
-                    {'username': username, 'password': password, ...}
-        Return: a key/value dict of user attributes with hashed pwd & accountid,
-                {'username': username, 'accountid': accountid, ...}
-        """
-        # Create password hash with salt
-        password = user['password']
-        salt = bcrypt.gensalt()
-        passhash = bcrypt.hashpw(password.encode('utf-8'), salt)
-
-        accountid = users_db.generate_accountid()
-
-        # Create data to be added to the database
-        data = {
-            'accountid': accountid,
-            'username': user['username'],
-            'passhash': passhash,
-            'firstname': user['firstname'],
-            'lastname': user['lastname'],
-            'birthday': user['birthday'],
-            'timezone': user['timezone'],
-            'address': user['address'],
-            'state': user['state'],
-            'zip': user['zip'],
-            'ssn': user['ssn'],
-        }
-        return data
 
     @atexit.register
     def _shutdown():
