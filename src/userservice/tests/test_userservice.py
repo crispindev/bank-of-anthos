@@ -64,7 +64,7 @@ class TestUserservice(unittest.TestCase):
                     # create test client
                     self.test_app = self.flask_app.test_client()
 
-    def test_version_endpoint(self):
+    def test_version_endpoint_returns_200_status_code_correct_version(self):
         """test if correct version is returned"""
         # generate a version
         version = str(random.randint(1, 9))
@@ -77,14 +77,14 @@ class TestUserservice(unittest.TestCase):
         # assert both versions are equal
         self.assertEqual(response.data, version.encode())
 
-    def test_ready_endpoint(self):
+    def test_ready_endpoint_200_status_code_ok_string(self):
         """test if correct response is returned from readiness probe"""
         response = self.test_app.get('/ready')
         # assert 200 response code
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data, b'ok')
 
-    def test_create_user(self):
+    def test_create_user_201_status_code_correct_db_user_object(self):
         """test creating a new user who does not exist in the DB"""
         # mock return value of get_user which checks if user exists as None
         self.mocked_db.return_value.get_user.return_value = None
@@ -112,7 +112,7 @@ class TestUserservice(unittest.TestCase):
         # assert all keys are equal except for hashed pwd
         self.assertEqual(user_object, expected_user_object)
 
-    def test_create_user_existing(self):
+    def test_create_user_existing_409_status_code_error_message(self):
         """test creating a new user who already exists in the DB"""
         # mock return value of get_user which checks if user exists
         self.mocked_db.return_value.get_user.return_value = {}
@@ -128,7 +128,7 @@ class TestUserservice(unittest.TestCase):
             response.json['msg'], 'user {} already exists'.format(example_user_request['username'])
         )
 
-    def test_create_user_sql_error(self):
+    def test_create_user_sql_error_500_status_code_error_message(self):
         """test creating a new user but throws SQL error when trying to add"""
         # mock return value of get_user which checks if user exists as None
         self.mocked_db.return_value.get_user.return_value = None
@@ -144,7 +144,7 @@ class TestUserservice(unittest.TestCase):
         # assert we get correct error message
         self.assertEqual(response.json['msg'], 'failed to create user')
 
-    def test_create_user_malformed(self):
+    def test_create_user_malformed_400_status_code_error_message(self):
         """test creating a new user without required keys"""
         # test each expected field missing from user request
         for expected_field in EXPECTED_FIELDS:
@@ -159,7 +159,7 @@ class TestUserservice(unittest.TestCase):
             # assert we get correct error message
             self.assertEqual(response.json['msg'], 'missing required field(s)')
 
-    def test_create_user_malformed_empty(self):
+    def test_create_user_malformed_empty_400_status_code_error_message(self):
         """test creating a new user with empty value for required key"""
         # create example user request
         example_user = EXAMPLE_USER_REQUEST.copy()
@@ -172,7 +172,7 @@ class TestUserservice(unittest.TestCase):
         # assert we get correct error message
         self.assertEqual(response.json['msg'], 'missing value for input field(s)')
 
-    def test_create_user_mismatch_password(self):
+    def test_create_user_mismatch_password_400_status_code_error_message(self):
         """test creating a new user with empty value for required key"""
         # create example user request
         example_user = EXAMPLE_USER_REQUEST.copy()
@@ -188,7 +188,7 @@ class TestUserservice(unittest.TestCase):
 
     # mock check pw to return true to simulate correct password
     @patch('bcrypt.checkpw', return_value=True)
-    def test_login(self, _mock_checkpw):
+    def test_login_200_status_code_jwt_decoding_payload_passes(self, _mock_checkpw):
         """test logging in with existing user"""
         # create example user request
         example_user = EXAMPLE_USER.copy()
@@ -213,7 +213,7 @@ class TestUserservice(unittest.TestCase):
 
     # mock check pw to return false
     @patch('bcrypt.checkpw', return_value=False)
-    def test_login_invalid_password(self, _mock_checkpw):
+    def test_login_invalid_password_401_status_code_error_message(self, _mock_checkpw):
         """test logging in with existing user and wrong password"""
         # create example user request
         example_user = EXAMPLE_USER.copy()
@@ -225,7 +225,7 @@ class TestUserservice(unittest.TestCase):
         # assert we get correct error message
         self.assertEqual(response.json['msg'], 'invalid login')
 
-    def test_login_non_existent_user(self):
+    def test_login_non_existent_user_404_status_code_error_message(self):
         """test logging in with a user that does not exist"""
         # mock return value of get_user which checks if user exists as None
         self.mocked_db.return_value.get_user.return_value = None
