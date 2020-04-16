@@ -14,7 +14,7 @@
 # limitations under the License.
 
 # install git, kubectl, maven, jdk, pip
-sudo apt-get -y install git kubectl maven default-jdk python3-pip
+sudo apt-get -y install git kubectl maven default-jdk python3-pip python3-venv
 
 # install go
 curl -O https://storage.googleapis.com/golang/go1.12.9.linux-amd64.tar.gz
