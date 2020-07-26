@@ -19,7 +19,7 @@ limitations under the License.
       <meta charset="utf-8">
       <meta http-equiv="X-UA-Compatible" content="IE=edge">
       <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0">
-      <title>Bank of Anthos</title>
+      <title>{{ bank_name }}</title>
       <link href="https://fonts.googleapis.com/css2?family=Open+Sans&display=swap" rel="stylesheet">
       <link rel="stylesheet" href="https://unpkg.com/bootstrap-material-design@4.1.1/dist/css/bootstrap-material-design.min.css" integrity="sha384-wXznGJNEXNG1NFsbm0ugrLFMQPWswR3lds2VeinahP8N0zJw9VWSopbjv2x7WCvX" crossorigin="anonymous">
       <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
@@ -31,7 +31,7 @@ limitations under the License.
         <nav class="navbar navbar-expand-lg navbar-top">
           <div class="container">
             <a class="navbar-brand">
-              Bank of Anthos
+              {{ bank_name }}
             </a>
           </div>
         </nav>
@@ -66,13 +66,13 @@ limitations under the License.
                       <div id="alertBanner" class="alert alert-danger mb-4" role="alert">
                         <span class="alert-icon mr-2 material-icons">error</span>Login failed.
                       </div>
-                      <form id="signin-form" class="needs-validation" novalidate="" method="POST" action="/login">
+                      <form id="login-form" class="needs-validation" novalidate="" method="POST" action="/login">
                         <label class="text-uppercase text-muted secondary-text" for="username">Username</label>
                         <div class="input-group mt-2d mb-5">
                           <div class="input-group-prepend mr-2">
                             <span class="input-group-text"><span class="material-icons">account_circle</span></span>
                           </div>
-                          <input class="form-control" type="text" id="username" name="username" autocomplete="off" value="{{ default_user }}" required>
+                          <input class="form-control" type="text" id="login-username" name="username" autocomplete="off" pattern="([a-zA-Z0-9_]){2,15}" value="{{ default_user }}" required>
                           <div class="invalid-feedback">
                             Please enter your username.
                           </div>
@@ -82,7 +82,7 @@ limitations under the License.
                           <div class="input-group-prepend mr-2">
                             <span class="input-group-text"><span class="material-icons">lock</span></span>
                           </div>
-                          <input class="form-control" type="password" id="password" name="password" value="{{ default_password }}" required>
+                          <input class="form-control" type="password" id="login-password" name="password" value="{{ default_password }}" required>
                           <div class="invalid-feedback">
                             Please enter your password.
                         </div>
@@ -91,7 +91,7 @@ limitations under the License.
                         <small class="text-uppercase secondary-text text-muted">
                           Not registered?
                         </small>
-                        <a href="/signup" class="btn btn-create-account btn-block mt-2 mb-4" type="button">Create an Account</a>
+                        <a href="/signup" class="btn btn-create-account btn-block mt-2 mb-4" id="create-account-btn" type="button">Create an Account</a>
                       </form>
                     </div>
                   </div>
@@ -122,7 +122,7 @@ limitations under the License.
       <script>
         document.addEventListener("DOMContentLoaded", function(event) {
           // Login client-side validation
-          var login = document.querySelector("#signin-form");
+          var login = document.querySelector("#login-form");
           login.addEventListener("submit", function(e) {
             if(!login.checkValidity()){
               e.preventDefault();

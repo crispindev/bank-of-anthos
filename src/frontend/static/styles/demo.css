@@ -53,7 +53,7 @@
 .menu-icon {
   color: #98a6ad;
 }
-.account-user-name {
+#account-user-name {
   font-weight: 600;
 }
 .account-user-avatar {
@@ -161,6 +161,9 @@
 }
 .transaction-date {
   font-size: 18px;
+}
+.transaction-label-none {
+  color: #95aac9;
 }
 .text-transaction-header {
   color: #95aac9 !important;

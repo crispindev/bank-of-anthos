@@ -17,36 +17,40 @@ Bank of Anthos was developed to create an end-to-end sample demonstrating Anthos
 | [ledger-writer](./src/ledgerwriter)              | Java          | Accepts and validates incoming transactions before writing them to the ledger.                                                               |
 | [balance-reader](./src/balancereader)            | Java          | Provides efficient readable cache of user balances, as read from `ledger-db`.                                                                |
 | [transaction-history](./src/transactionhistory)  | Java          | Provides efficient readable cache of past transactions, as read from `ledger-db`.                                                            |
-| [ledger-db](./src/ledger-db)                     | Redis Streams | Append-only ledger of all transactions. Comes pre-populated with past transaction data for default user.                                     |
+| [ledger-db](./src/ledger-db)                     | PostgreSQL | Ledger of all transactions. Option to pre-populate with transactions for demo users.                                                         |
 | [user-service](./src/userservice)                | Python        | Manages user accounts and authentication. Signs JWTs used for authentication by other services.                                              |
-| [contacts](./src/contacts)                       | Python        | Stores list of other accounts associated with a user. Used for drop down in "Send Payment" and "Deposit" forms (mock, uses hard-coded data). |
-| [accounts-db](./src/accounts-db)                 | MongoDB       | Database for user accounts and associated data. Comes pre-populated with default user.                                                       |
+| [contacts](./src/contacts)                       | Python        | Stores list of other accounts associated with a user. Used for drop down in "Send Payment" and "Deposit" forms. |
+| [accounts-db](./src/accounts-db)                 | PostgreSQL | Database for user accounts and associated data. Option to pre-populate with demo users.                                                      |
 | [loadgenerator](./src/loadgenerator)             | Python/Locust | Continuously sends requests imitating users to the frontend. Periodically created new accounts and simulates transactions between them.      |
 
 
 ## Installation
 
-### 1 - Clone the repo
+### 1 - Project setup
 
-Clone this repository to your local environment.
-
-```
-git clone https://github.com/GoogleCloudPlatform/bank-of-anthos.git
-```
-
-### 2 - Project setup
-
-[Create a Google Cloud Platform project](https://cloud.google.com/resource-manager/docs/creating-managing-projects#creating_a_project) or use an existing project. Then, set the Project ID variable.
+[Create a Google Cloud Platform project](https://cloud.google.com/resource-manager/docs/creating-managing-projects#creating_a_project) or use an existing project. Set the PROJECT_ID environment variable and ensure the Google Kubernetes Engine API is enabled.
 
 ```
 PROJECT_ID=<your-project-id>
+gcloud beta services enable container --project ${PROJECT_ID}
 ```
+
+### 2 - Clone the repo
+
+Clone this repository to your local environment and cd into the directory.
+
+```
+git clone https://github.com/GoogleCloudPlatform/bank-of-anthos.git
+cd bank-of-anthos
+```
+
 
 ### 3 - Create a Kubernetes cluster
 
 ```
+ZONE=<your-zone>
 gcloud beta container clusters create bank-of-anthos \
-    --project=${PROJECT_ID} --zone=us-central1-b \
+    --project=${PROJECT_ID} --zone=${ZONE} \
     --machine-type=n1-standard-2 --num-nodes=4
 ```
 
@@ -85,7 +89,7 @@ transactionhistory-5569754896-z94cn   1/1     Running   0          97s
 userservice-78dc876bff-pdhtl          1/1     Running   0          96s
 ```
 
-### 4 - Get the frontend IP
+### 6 - Get the frontend IP
 
 ```
 kubectl get svc frontend | awk '{print $4}'
@@ -100,7 +104,7 @@ EXTERNAL-IP
 
 **Note:** you may see a `<pending>` IP for a few minutes, while the GCP load balancer is provisioned.
 
-### 5 - Navigate to the web frontend
+### 7 - Navigate to the web frontend
 
 Paste the frontend IP into a web browser. You should see a log-in screen:
 
@@ -109,6 +113,51 @@ Paste the frontend IP into a web browser. You should see a log-in screen:
 Using the pre-populated username and password fields, log in as `testuser`. You should see a list of transactions, indicating that the frontend can successfully reach the backend transaction services.
 
 ![](/docs/transactions.png)
+
+## Setup for Workload Identity clusters
+
+If you have enabled [Workload Identity](https://cloud.google.com/kubernetes-engine/docs/how-to/workload-identity) on your GKE cluster ([a requirement for Anthos Service Mesh](https://cloud.google.com/service-mesh/docs/gke-anthos-cli-new-cluster#requirements)), follow these instructions to ensure that Bank of Anthos pods can communicate with GCP APIs.
+
+*Note* - These instructions have only been validated in GKE on GCP clusters. [Workload Identity is not yet supported](https://cloud.google.com/kubernetes-engine/docs/how-to/workload-identity#creating_a_relationship_between_ksas_and_gsas) in Anthos GKE on Prem. 
+
+
+1. **Set up Workload Identity** on your GKE cluster [using the instructions here](https://cloud.google.com/kubernetes-engine/docs/how-to/workload-identity#enable_on_new_cluster). These instructions create the Kubernetes Service Account (KSA) and Google Service Account (GSA) that the Bank of Anthos pods will use to authenticate to GCP. Take note of what Kubernetes `namespace` you use during setup.
+
+2. **Add IAM Roles** to your GSA. These roles allow workload identity-enabled Bank of Anthos pods to send traces and metrics to GCP. 
+
+```bash
+PROJECT_ID=<your-gcp-project-id>
+GSA_NAME=<your-gsa>
+
+gcloud projects add-iam-policy-binding ${PROJECT_ID} \
+  --member "serviceAccount:${GSA_NAME}@${PROJECT_ID}.iam.gserviceaccount.com" \
+  --role roles/cloudtrace.agent
+
+gcloud projects add-iam-policy-binding ${PROJECT_ID} \
+  --member "serviceAccount:${GSA_NAME}@${PROJECT_ID}.iam.gserviceaccount.com" \
+  --role roles/monitoring.metricWriter
+```
+
+3. **Generate Bank of Anthos manifests** using your KSA as the Pod service account. In `kubernetes-manifests/`, replace `serviceAccountName: default` with the name of your KSA. (**Note** - sample below is Bash.)
+
+```bash
+
+KSA_NAME=<your-ksa>
+
+mkdir -p wi-kubernetes-manifests
+FILES="`pwd`/kubernetes-manifests/*"
+for f in $FILES; do
+    echo "Processing $f..."
+    sed "s/serviceAccountName: default/serviceAccountName: ${KSA_NAME}/g" $f > wi-kubernetes-manifests/`basename $f`
+done
+```
+
+4. **Deploy Bank of Anthos** to your GKE cluster using the install instructions above, except make sure that instead of the default namespace, you're deploying the manifests into your KSA namespace: 
+
+```bash
+NAMESPACE=<your-ksa-namespace>
+kubectl apply -n ${NAMESPACE} -f ./wi-kubernetes-manifests 
+```
 
 
 ## Local Development

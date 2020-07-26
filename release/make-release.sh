@@ -29,12 +29,8 @@ if [[ ! "${NEW_VERSION}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
     echo "ex. v1.0.1"
     exit 1
 fi
-# ensure local repo is up to date with master
-if [[ $(git rev-parse origin/master) != $(git rev-parse @) ]]; then
-    echo "error: must be on same commit as origin/master"
-    exit 1
-fi
-# ensure there are no uncommitted chantes
+
+# ensure there are no uncommitted changes
 if [[ $(git status -s | wc -l) -gt 0 ]]; then
     echo "error: can't have uncommitted changes"
     exit 1
@@ -43,6 +39,8 @@ fi
 # update version in manifests
 CURRENT_VERSION=$(grep -A 1 VERSION ${REPO_ROOT}/kubernetes-manifests/*.yaml | grep value | head -n 1 | awk '{print $3}' |  tr -d '"')
 find "${REPO_ROOT}/kubernetes-manifests" -name '*.yaml' -exec sed -i -e "s/${CURRENT_VERSION}/${NEW_VERSION}/g" {} \;
+# tag image with explicit version
+find "${REPO_ROOT}/kubernetes-manifests" -name '*.yaml' -exec sed -i -e "s/:latest/:${NEW_VERSION}/g" {} \;
 
 # push release PR
 git checkout -b "release/${NEW_VERSION}"
@@ -51,6 +49,11 @@ git commit -m "release/${NEW_VERSION}"
 
 # add tag
 git tag "${NEW_VERSION}"
+
+# change back to latest tag
+find "${REPO_ROOT}/kubernetes-manifests" -name '*.yaml' -exec sed -i -e "s/:${NEW_VERSION}/:latest/g" {} \;
+git add "${REPO_ROOT}/kubernetes-manifests/*.yaml"
+git commit -m "revert to latest images"
 
 # build and push containers
 skaffold config set local-cluster false
